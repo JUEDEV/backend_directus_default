@@ -1,0 +1,63 @@
+services:
+  database:
+    image: postgis/postgis:17-master
+    volumes:
+      - ./data/database:/var/lib/postgresql/data
+      - ./db/init.sh:/docker-entrypoint-initdb.d/init.sh
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_USER: ${PG_ADMIN}
+      POSTGRES_PASSWORD: ${PG_PASSW}
+      POSTGRES_DB: ${PG_DATAB}
+      POSTGRES_DIRECTUS_DATABASE: ${DIRECTUS_DATABASE}
+      POSTGRES_DIRECTUS_USER: ${DIRECTUS_USER}
+      POSTGRES_DIRECTUS_PASSWORD: ${DIRECTUS_PASSWORD}
+      CORS_ENABLED: ${CORS_ENABLED}
+      CORS_ORIGIN: ${CORS_ORIGIN}
+    healthcheck:
+      test: ["CMD", "pg_isready", "--host=localhost", "--username=${PG_ADMIN}", "--dbname=${PG_DATAB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_interval: 5s
+      start_period: 30s
+    networks:
+      - local_dev_network
+
+  directus:
+    image: directus/directus:11
+    ports:
+      - 8055:8055
+    volumes:
+      - ./uploads:/directus/uploads
+      - ./extensions:/directus/extensions
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      SECRET: ${DIRECTUS_SECRET}
+      MAX_PAYLOAD_SIZE: "20mb"
+      DB_CLIENT: "pg"
+      DB_HOST: "database"
+      DB_PORT: "5432"
+      DB_DATABASE: ${DIRECTUS_DATABASE}
+      DB_USER: ${DIRECTUS_USER}
+      DB_PASSWORD: ${DIRECTUS_PASSWORD}
+      CORS_ENABLED: ${CORS_ENABLED}
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      CORS_METHODS: ${CORS_METHODS}
+      CORS_ALLOWED_HEADERS: ${CORS_ALLOWED_HEADERS}
+
+      ADMIN_EMAIL: "iadmin@imaginacolombia.com"
+      ADMIN_PASSWORD: "iadmin"
+
+      PUBLIC_URL: "http://localhost:8055"
+      ROBOTS_TXT: "User-agent: *\nAllow: /assets/*.webp\nDisallow: /"
+    networks:
+      - local_dev_network
+
+networks:
+  local_dev_network:
+    name: local_dev_network
+    driver: bridge
